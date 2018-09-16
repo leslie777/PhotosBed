@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ElasticSearch</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+# ElasticSearch
+
+---
+
+# 目录
+
+1. 全文检索基础知识
+2. ES简介
+3. ES组成及工作原理解析
+4. ES搜索与集群管理
+5. 经验分享
+
+---
+## 1. 全文检索基础
+---
+class: center
+### 什么是全文检索？
+
+---
+![es例子](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/%E6%90%9C%E7%B4%A2%E4%BE%8B%E5%AD%90.png)
+---
+
+![淘宝检索架构](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/%E6%B7%98%E5%AE%9D%E6%A3%80%E7%B4%A2%E6%9E%B6%E6%9E%841.png)
+---
+
+  全文数据: 数据量大的非结构化数据（不定长无固定格式，邮件文章word）
+ 
+ 1. 特性：
+    - 主要是基于文本内容的查询
+    - 多字段查询，个字段权重不同
+    - 支持“模糊匹配” like 近似词 xi'xi
+    - 一般需要人为干预某些搜索条目的权重
+    - 两个主要衡量指标：
+        - 查全率： 查询出所有相关的内容
+        - 查准率： 优先最相关的文档
+ 2. 方式：
+    -  顺序扫描法：全文检索无索引： windows文件搜索，Linux下的grep。。大量文件很慢
+    -  创建索引: 如倒排索引（反向索引） 将文章中关键字段抽取出来（分词器），作为索引 （index） （词典），保留到各个原文档（行）(Document)的链接链表（倒排表）
+---
+
+倒排索引  keyword-> list<doc>
+ 
+![倒排索引1](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/%E5%80%92%E6%8E%92%E7%B4%A2%E5%BC%951.png)
+
+多字段查询。合并链表
+
+![倒排索引2](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/%E5%80%92%E6%8E%92%E7%B4%A2%E5%BC%952.png)
+---
+
+lucene 基本概念
+![lucene](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/lucene.png)
+---
+
+基于Java语言的全文检索和搜索框架
+ - 索引(Index)：
+    - 一个目录一个索引，在Lucene中一个索引是放在一个文件夹中的。
+ - 段(Segment)：
+    - 一个索引可以包含多个段，段与段之间是独立的，添加新文档可以生成新的段，不同的段可以合并。 
+ - 文档(Document)：
+    - 文档是我们建索引的基本单位，不同的文档是保存在不同的段中的，一个段可以包含多篇文档。
+    - 新添加的文档是单独保存在一个新生成的段中，随着段的合并，不同的文档合并到同一个段中。
+ - 域(Field)：
+    - 一篇文档包含不同类型的信息，可以分开索引，比如标题，时间，正文，作者等，都可以保存在不同的域里。
+    - 不同域的索引方式可以不同。
+ - 词(Term)：
+    - 词是索引的最小单位，是经过词法分析和语言处理后的字符串。
+ - 分词器(Analyzer)：       
+    - 用于对原始内容做分词、大小写转换等处理，最后生成多个term
+---
+
+lucene-Doc打分公式
+
+
+<img src="http://chart.googleapis.com/chart?cht=tx&chl= score(q,d) = coord(q,d) * queryNorm(q) * \sum\limits_{t\ in\ q}(tf(t\ in\ d)*idf(t)^2*t.getBoost()*norm(td)) " style="border:none;">
+
+影响score 的因素：
+ - doc种包含的term的个数：包含term多，score搞
+ - field的权重设置
+ - term出现频率： 出现频率低的trem对应的source高（大数据（低） hadoop(高))
+ - fieldNorm： 短小的字段scoue高
+ - term出现的位置： 越靠前的doc得分越高
+ - doc的权重（）
+---
+
+lucene的索引结构
+
+![索引结构1](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/索引结构1.png)
+---
+
+Lucene的索引结构中，即保存了正向信息，也保存了反向信息。
+
+所谓正向信息：
+
+- 按层次保存了从索引，一直到词的包含关系：索引(Index) –> 段(segment) –> 文档(Document) –> 域(Field) –> 词(Term)
+- 既然是层次结构，则每个层次都保存了本层次的信息以及下一层次的元信息，也即属性信息，比如一本介绍中国地理的书，应该首先介绍中国地理的概况，以及中国包含多少个省，每个省介绍本省的基本概况及包含多少个市，每个市介绍本市的基本概况及包含多少个县，每个县具体介绍每个县的具体情况。
+- 如上图，包含正向信息的文件有：
+    - segments_N保存了此索引包含多少个段，每个段包含多少篇文档。
+    - XXX.fnm保存了此段包含了多少个域，每个域的名称及索引方式。
+    - XXX.fdx，XXX.fdt保存了此段包含的所有文档，每篇文档包含了多少域，每个域保存了那些信息。
+    - XXX.tvx，XXX.tvd，XXX.tvf保存了此段包含多少文档，每篇文档包含了多少域，每个域包含了多少词，每个词的字符串，位置等信息。
+---
+
+所谓反向信息：
+
+ - 保存了词典到倒排表的映射：词(Term) –> 文档(Document)
+ - 如上图，包含反向信息的文件有：
+    - XXX.tis，XXX.tii保存了词典(Term Dictionary)，也即此段包含的所有的词按字典顺序的排序。
+    - XXX.frq保存了倒排表，也即包含每个词的文档ID列表。
+    - XXX.prx保存了倒排表中每个词在包含此词的文档中的位置
+---
+
+使用lucene开发
+ 
+ 建立索引
+ 
+```code
+public staic void main (String[] args) {
+    Directory dir = FSDirectory.open(Paths.get(indexPath));
+    Analyzer analyzer = new StandardAnalyzer();
+    IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+    iwc.setOpenMde(OpenMode.CREATE);
+    IndexWriter writer = new IndexWriter(dir,iwc);
+    Path file = "";
+    InputStream stream = Files.newInputStream(file);
+    Document doc = new Document();
+    doc.add(new StringField("path"),file.toString(), Field.Store.YES));
+    doc.add(new LongPoint("modified", lastModified));
+    doc.add(new TextField("contents"), new BufferedReader(
+            new InputStreamReader(stream, StandardCharsets.UTF_8))));
+    writer.addDocument(doc);
+    writer.close;
+}
+```
+---
+
+查询
+```code
+public staic void main (String[] args) {
+    Directory dir = FSDirectory.open(Paths.get(indexPath));
+    IndexReader reader = DirectoryReader.open(dir));
+	IndexSearcher indexSearcher = new IndexSearcher(reader);
+	Analyzer analyzer = new StandardAnalyzer();
+	// 查询方式 多字段
+	MutiFieldQueryParser queryParser = new MutiFieldQueryParser(
+	       Version.LUCENE_41,
+	       new String[]{"path","contents", "modified"},
+	       new StandardAnalyzer(Version.LUCENE_41));
+	Query query = queryParser.parse("here goes your query");
+	TopDocs hits = indexSearcher.search(query, 10);
+	for(ScoreDoc scoreDoc : hits.scoreDocs) {
+		Document doc = indexSearcher.doc(scoreDoc.doc);
+		System.out.println(doc.get("path"));
+	}
+	reader.close();
+}
+```
+---
+
+Lucene的局限性
+ 
+ - 仅提供了一个开发工具包，索引和搜索需要自己编写代码
+ - 如果要构建复杂的查询，开发成本高
+ - 不提供分布式支持，无法应付大数据量下的索引和查询
+---
+---
+
+ElasticSearch是什么？
+
+ElasticSearch是一个构建于Lucene之上，提供**分布式，动态扩展，高可用**功能，所有操作都可基于**RESTFUL API**的开源的**近实时全文检索系统**
+
+![用户](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/用户.png)
+---
+版本
+
+![版本](https://raw.githubusercontent.com/leslie777/PhotosBed/master/ElasticSearch/版本.png)
+
+
+
+
+ </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html> 
