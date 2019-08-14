@@ -1,0 +1,312 @@
+(function(){
+    var Subscribe = function(id, options, type) {
+        this.id = id;
+        this.options = options || {};
+        this.ajaxSubmit = false;
+        this.type = type || 'article';
+        this.template = "<div style='max-width: 300px;'><div style='padding: 0px;'><h3><#=title#></h3><form action='https://sso.nytcn.me/email/subscribe/' accept-charset='utf-8' method='POST' id='subscribeForm_<#=randomNum#>'><div style='display:none'><input type='hidden' name='rlt' value='cdf81faf3b27d141eed0d85abfb95caa' /></div><div style='margin: 10px 0; padding-right: 0;overflow: hidden;'><div style='width: 100%;padding-right: 0;box-sizing: border-box;'><input type='email' data-required data-validate-msg='请输入正确的电子邮箱！' style='margin:0;-webkit-appearance:none;outline:none;width: 100%;padding: 8px 10px;border: 1px solid #c1c1c3;border-radius: 2px;-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);box-shadow: inset 0 1px 1px rgba(0,0,0,.075);box-sizing: border-box;font-size: 0.825rem;color: #000;' id='subscribeEmail_<#=randomNum#>' name='email' placeholder='<#=input_placeholder#>'><input type='hidden' name='source' value='news:new_article'><input type='hidden' name='ekey' value='2aa869bd2c2bea570197b7c8608b629e43e3d901764c16134b24380b4b5ff551::5ype4x618bs4oosw0gsk8c4w0'></div><label for='subscribeAccept_<#=randomNum#>' style='margin-top: 5px;cursor: pointer;display: inline-block;max-width: 100%;font-size: 0.75rem;color: #666;'><input style='margin-right:5px; font-size: 1rem;' type='checkbox' name='accept' id='subscribeAccept_<#=randomNum#>'  data-validate-msg='请同意接收纽约时报中文网的产品和服务推广邮件！'><#=checkbox_label#></label><input type='submit' style='margin: 0;max-height:33px;-webkit-appearance:none;outline: none;width:100%;padding: 8px 10px;border-radius: 2px;border: 1px solid #c6c4c7;background: #e5e7e4;font-size:0.75rem; font-weight: bold; margin-top: 15px;' value='<#=subscribe_btn#>' id='subscribeSubimtbtn_<#=randomNum#>'></div><div id='subscribeError_<#=randomNum#>' style='display:none;color:red'></div></form></div><div style='font-size: 0.75rem; color:#888;padding: 4px 0;background: #f1f2f6;margin-top: 3px;'><#for(var i = 0; i < btns.length; i++){#>    <#if(i != btns.length - 1){#><a style='color: #4c5157;padding: 0 5px;text-decoration: none; border-right: 1px solid #d0cfcd;' href='<#=btns[i].href#>'>    <#=btns[i].text#></a>    <#} else { #><a style='color: #4c5157;padding: 0 5px;text-decoration: none;' href='<#=btns[i].href#>'>    <#=btns[i].text#></a>    <# } #><# } #></div></div>";
+        this.init();
+    }
+
+    Subscribe.prototype.init = function() {
+        this.extend();
+        this.insertTemplate();
+        this.addEvent();
+    };
+
+    Subscribe.prototype.addEvent = function(){
+        var that = this;
+        var _form = document.getElementById('subscribeForm_' + this.randomNum);
+
+        function checkEmail(val) {
+            var reg = /^\w+((-\w+)|(\.\w+))*\@[A-Za-z0-9]+((\.|-)[A-Za-z0-9]+)*\.[A-Za-z0-9]+$/;
+            return reg.test(trim(val));
+        }
+
+        function trim(str) {
+            var reg = /(^\s*)|(\s*$)/g;
+            return str.replace(reg, '');
+        }
+
+        function serialize(form) {
+            if (!form || form.nodeName !== "FORM") {
+                return;
+            }
+            var i, j, q = [];
+            for (i = form.elements.length - 1; i >= 0; i = i - 1) {
+                if (form.elements[i].name === "") {
+                    continue;
+                }
+                switch (form.elements[i].nodeName) {
+                    case 'INPUT':
+                        switch (form.elements[i].type) {
+                            case 'text':
+                            case 'hidden':
+                            case 'email':
+                            case 'password':
+                            case 'button':
+                            case 'reset':
+                            case 'submit':
+                                {
+                                    var value = trim(form.elements[i].value);
+                                    if(form.elements[i].type == 'email') {
+                                        if(!checkEmail(value)) {
+                                            alert(form.elements[i].getAttribute('data-validate-msg'));
+                                            return false;
+                                        }
+                                    }
+
+                                    if(value == '' && form.elements[i].getAttribute('data-required') != null) {
+                                        alert(form.elements[i].getAttribute('data-validate-msg'));
+                                        return false;
+                                    }
+                                    q.push(form.elements[i].name + "=" + encodeURIComponent(value));
+                                }
+                                break;
+                            case 'checkbox':
+                            case 'radio':
+                                if (!form.elements[i].checked) {
+                                    alert(form.elements[i].getAttribute('data-validate-msg'));
+                                    return false;
+                                }
+                                q.push(form.elements[i].name + "=" + encodeURIComponent(form.elements[i].value));
+                                break;
+                            case 'file':
+                                break;
+                        }
+                        break;
+                    case 'TEXTAREA':
+                        q.push(form.elements[i].name + "=" + encodeURIComponent(form.elements[i].value));
+                        break;
+                    case 'SELECT':
+                        switch (form.elements[i].type) {
+                            case 'select-one':
+                                q.push(form.elements[i].name + "=" + encodeURIComponent(form.elements[i].value));
+                                break;
+                            case 'select-multiple':
+                                for (j = form.elements[i].options.length - 1; j >= 0; j = j - 1) {
+                                    if (form.elements[i].options[j].selected) {
+                                        q.push(form.elements[i].name + "=" + encodeURIComponent(form.elements[i].options[j].value));
+                                    }
+                                }
+                                break;
+                        }
+                        break;
+                    case 'BUTTON':
+                        switch (form.elements[i].type) {
+                            case 'reset':
+                            case 'submit':
+                            case 'button':
+                                q.push(form.elements[i].name + "=" + encodeURIComponent(form.elements[i].value));
+                                break;
+                        }
+                        break;
+                }
+            }
+            return q.join("&");
+        }
+
+        _form.addEventListener('submit', function(e){
+            e.preventDefault();
+            if(that.ajaxSubmit) return false;
+            var data = serialize(_form);
+            if(!data) {
+                return data;
+            }
+
+            var submitBtn = document.getElementById('subscribeSubimtbtn_' + that.randomNum);
+            var errorEl = document.getElementById('subscribeError_' + that.randomNum);
+            that.ajaxSubmit = true;
+            var jsonpEl = document.createElement('script');
+
+            that.options.action_url = !that.options.hasOwnProperty('action_url') ? _form.getAttribute('action') : that.options.action_url;
+            if(that.options.action_url.indexOf('?') > -1) {
+                jsonpEl.src = that.options.action_url + '&' + data + '&callback=subscribeJSONPCallback' + that.randomNum;
+            } else {
+                jsonpEl.src = that.options.action_url + '?' + data + '&callback=subscribeJSONPCallback' + that.randomNum;
+            }
+
+            errorEl.style.display = 'block';
+            errorEl.style.color = '#333';
+            errorEl.innerHTML = '提交中，请稍候...';
+            submitBtn.style.color = '#ccc';
+            window['subscribeJSONPCallback' + that.randomNum] = function(response){
+                if(response.code === 0){
+                    errorEl.innerHTML = response.msg;
+                    errorEl.style.display = 'block';
+                    errorEl.style.color = 'green';
+                    submitBtn.style.color = '#333';
+                } else {
+                    errorEl.innerHTML = response.msg;
+                    errorEl.style.display = 'block';
+                    errorEl.style.color = 'red';
+                    submitBtn.style.color = '#333';
+                }
+                that.ajaxSubmit = false;
+                document.body.removeChild(jsonpEl);
+            }
+            jsonpEl.onerror = function(){
+                errorEl.innerHTML = '网络错误，请重试!';
+                errorEl.style.display = 'block';
+                errorEl.style.color = 'red';
+                submitBtn.style.color = '#333';
+            }
+            document.body.appendChild(jsonpEl);
+        }, false);
+    }
+
+    Subscribe.prototype.insertTemplate = function() {
+        this.insertEl = document.getElementById(this.id);
+
+        var _html = this.templateRender();
+        this.insertEl.innerHTML = _html;
+    };
+
+    // render template string
+    // reutrn html string
+    Subscribe.prototype.templateRender = function() {
+        var that = this;
+        var replaces = ["$out='';", "$out+=", ";", "$out"];
+
+        // escape special character
+        function stringify(code) {
+            return "'" + code
+            .replace(/('|\\)/g, '\\$1')
+            .replace(/\r/g, '\\r').replace(/\n/g, '\\n') + "'";
+        }
+
+        // replace space white and comment, return clear code
+        function htmlParse(code) {
+            code = code.replace(/[\n\r\t\s]+/g, ' ').replace(/<!--.*?-->/g, '');
+
+            if (code) {
+                code = replaces[1] + stringify(code) + replaces[2] + "\n";
+            }
+
+            return code;
+        }
+
+        // replace <#=something#> to logic code
+        // if logic code type is number, conversion to string
+        // if logic code tyep is function, call this action again and logic code by parameters
+        function toString(value, type) {
+            if (typeof value !== 'string') {
+                type = typeof value;
+                if (type === 'number') {
+                    value += '';
+                } else if (type === 'function') {
+                    value = toString(value());
+                } else {
+                    value = '';
+                }
+            }
+
+            return value;
+        }
+
+        //handle template string to code
+        function logic(code) {
+            if (code.indexOf('=') === 0) {
+
+                var isEscape = code.indexOf('==') !== 0;
+
+                code = code.replace(/^=*|[\s;]*$/g, '');
+
+                var _string = toString(code);
+
+                code = _string;
+
+                code = replaces[1] + code + replaces[2];
+
+            }
+
+            return code + "\n";
+        }
+
+        function createRandom() {
+            var randomNum = Math.floor(Math.random() * 100000000);
+            if(document.getElementById('subscribeForm_' + randomNum) != null) {
+                return createRandom();
+            } else {
+                return randomNum;
+            }
+        }
+
+        // conversion template string to html string
+        function getHtml(){
+            var _html = that.template.split('<#');
+            var tempCode = 'var $out = "";';
+            for(var i in that.options) {
+                if(i == 'img_srcs') {
+                    tempCode += 'img_src =  $data[\'img_srcs\'][\'' + that.type + '\'];';
+                } else {
+                    tempCode += i + '=$data.' + i + ';';
+                }
+            }
+            that.randomNum = createRandom();
+            tempCode += 'randomNum = ' + that.randomNum + ';';
+            for (var k = 0; k < _html.length; k++) {
+                var newHtml = _html[k].split('#>');
+                var $0 = newHtml[0];
+                var $1 = newHtml[1];
+                if (newHtml.length === 1) {
+                    tempCode += htmlParse($0);
+                } else {
+                    tempCode += logic($0);
+                    if ($1) {
+                        tempCode += htmlParse($1);
+                    }
+                }
+            }
+
+            tempCode += "return $out";
+            var Render = new Function('$data', tempCode);
+            var out = Render(that.options);
+            return out;
+        }
+
+        return getHtml();
+    };
+
+    /*
+     * extend options, use user options replace default options.
+     */
+    Subscribe.prototype.extend = function() {
+        var defaults = {
+            title: '现在就订阅纽约时报中文网－新闻简报',
+            description: '订阅每日精选新闻简报，纽约时报的全球报道会直接送达您的电子邮箱，包括国际时事、时报看中国、教育、科技、健康、观点与评论等精彩内容。',
+            img_srcs: {
+                'article': 'https://static01.nyt.com/images/2017/06/21/world/21DC-TRUMPCHINA/21DC-TRUMPCHINA-thumbLarge.jpg',
+                'single': 'https://static01.nyt.com/images/2015/07/29/opinion/29LeducWeb/29LeducWeb-articleLarge.jpg',
+                'homepage': 'https://static01.nyt.com/images/2017/06/21/world/21DC-TRUMPCHINA/21DC-TRUMPCHINA-thumbLarge.jpg'
+            },
+            input_placeholder: '请输入电子邮件地址',
+            subscribe_btn: '订阅',
+            checkbox_label: '同意接收纽约时报中文网的产品和服务推广邮件',
+            btns: [
+                {
+                    'href': 'http://newsletter.graylady.us/n/ ',
+                    'text': '查看新闻简报'
+                },
+                {
+                    'href': 'http://cn.nytimes.com/help/privacy/',
+                    'text': '隐私权声明'
+                }
+            ]
+        };
+
+        for (var i in defaults){
+            if(!this.options.hasOwnProperty(i)) {
+                this.options[i] = defaults[i];
+            }
+        }
+
+        if(typeof this.options.img_src != 'undefined') {
+            delete this.options.img_srcs;
+        }
+    };
+
+    // export subscribe object to global
+    window.Subscribe = Subscribe;
+
+})();
